@@ -16,11 +16,6 @@ mongoose.connect(config.DB_URL, config.mongoDBConnectionOptions, err => {
     mongoose.connections[0].createCollection('ref_royalty', {viewOn: 'users', pipeline: debetPipeline}).catch(err => console.error(err.message))
 
     app.use(express.static(__dirname + "/public"))
-    app.use(require("cookie-parser")())
-    app.use(require('cors')({
-        credentials: true,
-        origin: 'http://127.0.0.1:5501',
-    }))
     app.use(require('express-session')({
         store:              require('mongoose-session')(mongoose),
         secret:             process.env.AUTH_SECRET_KEY,
@@ -38,7 +33,6 @@ mongoose.connect(config.DB_URL, config.mongoDBConnectionOptions, err => {
         if (!req.query.address) return res.sendStatus(400)
         req.session.address=req.query.address
         res.send(req.session.id)
-        console.log(req.session.id)
     })
 
     app.post('/login', async (req, res) => {
@@ -47,7 +41,6 @@ mongoose.connect(config.DB_URL, config.mongoDBConnectionOptions, err => {
 
         const requestedAddress = req.query.address.toLowerCase()
         const signerAddress = web3.eth.accounts.recover(req.session.id, req.query.signedData).toLowerCase()
-        console.log(req.session.id)
         if (requestedAddress != signerAddress) return req.session.destroy() && res.sendStatus(401)
         req.session.address = signerAddress
 
