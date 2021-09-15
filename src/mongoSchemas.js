@@ -1,4 +1,4 @@
-const { Schema, Types, mongo } = require('mongoose')
+const { Schema, Types} = require('mongoose')
 require('dotenv').config({ path: 'src/.env' })
 
 module.exports.usersSchema = new Schema({

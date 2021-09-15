@@ -1,4 +1,5 @@
 require('dotenv').config({path: 'src/.env'})
+require('dotenv').config({})
 const config = require('./config.json')
 const Web3 = require('web3')// require manual issue fix https://github.com/dvcrn/web3.js/commit/b868c5fece70fba6d34b577ef59f3fa3159390ad 
 const web3 = new Web3(process.env.BSC_RPC)
@@ -17,7 +18,7 @@ const SWAP_SIGNATURES_LIST = routerAbi
 
 
 const main = async () => {
-    await mongoose.connect(process.env.DB_URL, config.mongoDBConnectionOptions)
+    await mongoose.connect(config.DB_URL, config.mongoDBConnectionOptions)
     const swapModel = mongoose.model(`swaps`, swapSchema)
 
     while(1){
@@ -26,11 +27,18 @@ const main = async () => {
     
         console.log(`start from ${lastStoredBlock} to ${currentBlock} =>`)
         for (let i = lastStoredBlock; i < currentBlock; i++) {
-            const swapsInBlock = await getSwapsInBlock(i)
-            await swapModel.insertMany(swapsInBlock, { ordered: false }, (error, docs) => {
-                if (error) console.log('\tnote: ' + error.message)
-                console.log(`\t${i}/${currentBlock} synced with ${docs?.length || 0} swaps`)
-            })
+            try {
+                const swapsInBlock = await getSwapsInBlock(i)
+                await swapModel.insertMany(swapsInBlock, { ordered: false }, (error, docs) => {
+                    if (error) console.log('\tnote: ' + error.message)
+                    console.log(`\t${i}/${currentBlock} synced with ${docs?.length || 0} swaps`)
+                })
+            } catch (error) {
+                i--
+                console.log(error)
+                console.log('\tnote: ' + error.message)
+                await sleep(5000)
+            }
         }
 
         await sleep(10000)
@@ -54,7 +62,7 @@ const getSwapsInBlock = async blockNumber => {
             el, 
             web3.utils.isBN(decodedFunctionInput.inputs[i]) ? decodedFunctionInput.inputs[i].toString() : decodedFunctionInput.inputs[i]
         ]))
-        
+
         res.push({
             hash:           tx.hash,
             swapper:        tx.from,
@@ -66,7 +74,7 @@ const getSwapsInBlock = async blockNumber => {
             amount_in:      actualSwapAmounts[0],
             amount_out:     actualSwapAmounts[1]
         })
-        await sleep(50)
+        await sleep(25)
     }
 
     return res
@@ -91,7 +99,7 @@ const filterSwapTransactions = transactions =>
     transactions.filter(tx => tx.to === config.targetExchangeRouterAddress)//only to router
                 .filter(tx => isSwapFunction(tx.input.slice(0,10)))//only swap functions
 
-const isSwapFunction = signature => SWAP_SIGNATURES_LIST.indexOf(signature) > 0
+const isSwapFunction = signature => SWAP_SIGNATURES_LIST.indexOf(signature) >= 0
 
 const filterSwapTransactionReceiptLogs = logs => 
     logs.filter(log => log.topics[0] === SWAP_EVENT_TOPIC0)//only 'swap' event

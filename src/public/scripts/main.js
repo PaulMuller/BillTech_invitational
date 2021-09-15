@@ -1,5 +1,5 @@
 const web3 = new Web3(ethereum)
-const serverApi = 'http://localhost:4000'
+const serverApi = 'http://localhost:4000/api'
 
 const blockExplorerURL = chainId => {
     switch (chainId) {
@@ -42,18 +42,14 @@ const enableEthereumButtonClickHandler = async () => {
 const signInClickHandler = async () => {
     const sessionID = await fetch(`${serverApi}/requestLogin?address=${ethereum.selectedAddress}`, {
         method: 'GET',
-        mode: 'cors',
         headers: {'Content-Type': 'application/json'},
-        credentials: 'include'
     })
     
     const signedData = await web3.eth.personal.sign(await sessionID.text(), ethereum.selectedAddress)
 
     const login_res = await fetch(`${serverApi}/login?address=${ethereum.selectedAddress}&signedData=${signedData}`, {
         method: 'POST',
-        mode: 'cors',
-        headers:  { 'Content-Type': 'application/json'},
-        credentials: 'include'
+        headers: {'Content-Type': 'application/json'},
     })
     document.getElementById('signIn').innerHTML = await login_res.text()
     // document.getElementById('get24hSwapsTurnovers').textContent = await JSON.stringify(await get24hSwapsTurnovers(10752450, 10752500))
@@ -62,7 +58,6 @@ const signInClickHandler = async () => {
 const get24hSwapsTurnovers = async (blockStart, blockEnd) => {
     const data_res = await fetch(`${serverApi}/24hSwaps?blockStart=${blockStart}&blockEnd=${blockEnd}`, {
         method: 'GET',
-        mode: 'cors',
         headers: {'Content-Type': 'application/json'}
     })
     console.log(await data_res.text())
