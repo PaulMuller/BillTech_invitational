@@ -10,12 +10,6 @@ const blockExplorerURL = chainId => {
     }
 }
 
-const fetchOptions = {
-    method: 'GET',
-    mode: 'cors',
-    headers: {'Content-Type': 'application/json'}
-}
-
 const installAccount = () => {
     const connectButton     = document.getElementById('enableEthereumButton')
     const selectedAddress   = ethereum.selectedAddress
@@ -46,12 +40,33 @@ const enableEthereumButtonClickHandler = async () => {
 }
 
 const signInClickHandler = async () => {
-    const entrophy_res = await fetch(`${serverApi}/requestAuthEntrophy?address=${ethereum.selectedAddress}`, fetchOptions)
-    const entrophy = await entrophy_res.text()
-    const signedData = await web3.eth.personal.sign(entrophy, ethereum.selectedAddress)
+    const sessionID = await fetch(`${serverApi}/requestLogin?address=${ethereum.selectedAddress}`, {
+        method: 'GET',
+        mode: 'cors',
+        headers: {'Content-Type': 'application/json'},
+        credentials: 'include'
+    })
+    
+    const signedData = await web3.eth.personal.sign(await sessionID.text(), ethereum.selectedAddress)
 
-    const login_res = await fetch(`${serverApi}/login?address=${ethereum.selectedAddress}&signedData=${signedData}`, fetchOptions)
+    const login_res = await fetch(`${serverApi}/login?address=${ethereum.selectedAddress}&signedData=${signedData}`, {
+        method: 'POST',
+        mode: 'cors',
+        headers:  { 'Content-Type': 'application/json'},
+        credentials: 'include'
+    })
     document.getElementById('signIn').innerHTML = await login_res.text()
+    // document.getElementById('get24hSwapsTurnovers').textContent = await JSON.stringify(await get24hSwapsTurnovers(10752450, 10752500))
+}
+
+const get24hSwapsTurnovers = async (blockStart, blockEnd) => {
+    const data_res = await fetch(`${serverApi}/24hSwaps?blockStart=${blockStart}&blockEnd=${blockEnd}`, {
+        method: 'GET',
+        mode: 'cors',
+        headers: {'Content-Type': 'application/json'}
+    })
+    console.log(await data_res.text())
+    return await data_res.json()
 }
   
 ethereum.on('connect',          initiateMetamask)

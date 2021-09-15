@@ -5,7 +5,6 @@ module.exports.usersSchema = new Schema({
 	address: { type: String, required: true, unique: true, dropDups: true },
 	first_sign_in_timestamp: Number,
 	last_sign_in_timestamp: Number,
-	is_owner: { type: Boolean, required: true, unique: true, default: false },
 	referrer: { type: String, default: process.env.OWNER }
 })
 
@@ -53,6 +52,34 @@ module.exports.debetPipeline = [
 		}
 	}
 ]
+
+module.exports.tokensInfo = new Schema({
+	address: { type: String, required: true, unique: true, dropDups: true },
+	symbol: String,
+	decimals: Number
+})
+
+module.exports.turnoversPipeline = (blockStart, blockEnd) => [
+	{
+		'$match': {
+			'$expr': {
+				'$and': [
+					{'$gte': ['$block_number', blockStart]},
+					{'$lte': ['$block_number', blockEnd]}
+				]
+			}
+	  	}
+	}, {
+		'$group': {
+			'_id': {
+				'token_in': '$token_in', 
+				'token_out': '$token_out'
+			}, 
+			'turnover_in': {'$sum': '$amount_in'},
+			'turnover_out': {'$sum': '$amount_out'}
+	  	}
+	}
+] 
 
 
 

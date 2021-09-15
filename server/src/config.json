@@ -1,8 +1,16 @@
 {
     "serverPort": 4000,
-    "targetExchangeRouterAddress": "0x10ED43C718714eb63d5aA57B78B54704E256024E",
-    "mongoDBConnectionOptions":{ 
-        "useNewUrlParser": true, 
-        "useUnifiedTopology": true
-    }
+    "DB_URL": "mongodb://localhost:27017/dumbAssDataBass",
+    "SESSION_RESAVE" : true,
+    "SESSION_SAVE_UNINITIALIZED": true,
+    "SESSION_COOKIE" :{
+        "sameSite": true,
+        "httpOnly": true,
+        "secure": false,
+        "maxAge": 600e3,
+        "path": "/"
+    },
+    "SESSION_MAX_AGE": 600e3,
+    "targetExchangeRouterAddress": "0x10ED43C718714eb63d5aA57B78B54704E256024E"
+    
 }

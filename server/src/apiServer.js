@@ -1,91 +1,72 @@
 require('dotenv').config({path: 'src/.env'})
-const mongoose = require('mongoose')
+require('dotenv').config({})
+const config = require('./config')
 const Web3 = require('web3')
 const web3 = new Web3(process.env.BSC_RPC)
-const app = require('express')()
-const session = require('express-session')
-const cors = require('cors')
-const http = require('http').createServer(app)
-const config = require("./config.json")
-const usersSchema = require("./mongoSchemas.js").usersSchema
-const paymentsSchema = require("./mongoSchemas.js").paymentsSchema
-const debetPipeline = require("./mongoSchemas.js").debetPipeline
+const mongoose = require('mongoose')
+const express = require('express')
+const app = express()
+const {usersSchema, swapSchema, paymentsSchema, debetPipeline, turnoversPipeline} = require("./mongoSchemas.js")
 
-const entrophy = {}
+mongoose.connection.on('error', console.error.bind(console, 'failed to connect to data base'))
+mongoose.connection.once('open', () => console.log('data base connected at ' + mongoose.connection._connectionString))
 
+mongoose.connect(config.DB_URL, config.mongoDBConnectionOptions, err => {
+    if (err) return console.error(err)
+    mongoose.connections[0].createCollection('ref_royalty', {viewOn: 'users', pipeline: debetPipeline}).catch(err => console.error(err.message))
 
-const main = async() => {
-    await connectToDataBase()
-    launchClientServerHandlers()
-}
-
-const connectToDataBase = async() => {
-    mongoose.connection.on('error', console.error.bind(console, `failed to connect to DB`))
-    mongoose.connection.once('open', () => console.log(`connected to DB`))
-    await mongoose.connect(process.env.DB_URL, config.mongoDBConnectionOptions)
-    await mongoose.connections[0].createCollection(`ref_royalty`, {
-        viewOn: `users`, 
-        pipeline: debetPipeline
-    })
-}
-
-const launchClientServerHandlers = () => {
-    app.use(session({
-        secret: '2C44-4D44-WppQ38S',
-        resave: true,
-        saveUninitialized: true
+    app.use(express.static(__dirname + "/public"))
+    app.use(require("cookie-parser")())
+    app.use(require('cors')({
+        credentials: true,
+        origin: 'http://127.0.0.1:5501',
+    }))
+    app.use(require('express-session')({
+        store:              require('mongoose-session')(mongoose),
+        secret:             process.env.AUTH_SECRET_KEY,
+        resave:             config.SESSION_RESAVE,
+        saveUninitialized:  config.SESSION_SAVE_UNINITIALIZED,
+        cookie: {
+            secure: false,
+            maxAge: 600e3,
+            Path: '/'
+        },
+        maxAge:             config.SESSION_MAX_AGE
     }))
 
-    app.use(cors())
-
-    app.get('/requestAuthEntrophy', (req, res) => {
-        if (!req.query.address) res.sendStatus(401)
-        entrophy[req.query.address] = (Math.random()*1e18).toFixed()
-        res.end(entrophy[req.query.address])
-    })
-    
-    app.get('/login', async (req, res) => {
-        if (!req.query.address || !req.query.signedData) return res.send('login failed')
-        if (req.query.address.toLowerCase() === web3.eth.accounts.recover(entrophy[req.query.address] ,req.query.signedData).toLowerCase()) {
-            const usersModel = mongoose.model(`users`, usersSchema)
-            const user = await usersModel.findOne({address: req.query.address})
-            if (!user) {
-                await usersModel.create({
-                    address: req.query.address,
-                    first_sign_in_timestamp: Date.now(),
-                    last_sign_in_timestamp: Date.now(),
-                    is_owner: false,
-                    referrer: ''
-                })
-            } else {
-                await usersModel.findOneAndUpdate({address: req.query.address},{last_sign_in_timestamp: Date.now()})
-            }
-            req.session.address = req.query.address
-            res.end(`login success for ${req.query.address}!`)
-        }
-    })
-    
-    app.get('/logout', (req, res) => {
-        req.session.destroy()
-        res.end("logout success!")
+    app.get('/requestLogin', (req, res) => {
+        if (!req.query.address) return res.sendStatus(400)
+        req.session.address=req.query.address
+        res.send(req.session.id)
+        console.log(req.session.id)
     })
 
-    app.get('/content', auth, (req, res) => {
-        res.send("You can only see this after you've logged in.")
+    app.post('/login', async (req, res) => {
+        if (!req.query.address) return res.sendStatus(400)
+        if (!req.query.signedData) return res.sendStatus(400)
+
+        const requestedAddress = req.query.address.toLowerCase()
+        const signerAddress = web3.eth.accounts.recover(req.session.id, req.query.signedData).toLowerCase()
+        console.log(req.session.id)
+        if (requestedAddress != signerAddress) return req.session.destroy() && res.sendStatus(401)
+        req.session.address = signerAddress
+
+        const usersModel = mongoose.model('users', usersSchema)
+        const user = await usersModel.findOne({address: signerAddress})
+        if (user) await usersModel.findOneAndUpdate({address: signerAddress}, {last_sign_in_timestamp: Date.now()})
+        else await usersModel.create({
+            address: signerAddress,
+            first_sign_in_timestamp: Date.now(),
+            last_sign_in_timestamp: Date.now(),
+            referrer: null
+        })
+
+        res.status(200).send(`login success for ${signerAddress}!`)
     })
-    
-    app.get('*', (req, res) => res.sendStatus(200).send(`api works!`))
-    http.listen(config.serverPort, () => console.log(`server starts to handle requests at the port "${config.serverPort}"`))
-}
 
-// Authentication and Authorization Middleware
-const auth = (req, res, next) => {
-    if (req.session && req.session.address)
-      return next()
-    else
-      return res.sendStatus(401)
-}
+    app.post('/logout', auth, (req, res) => req.session.destroy() && res.status(200).send("logout success!") ) 
+    app.get('*', (req, res) => res.status(200).send(`api alive, authorized: ${!!req.session?.address}`))
+    app.listen(config.serverPort, () => console.log(`app running at ${config.serverPort}`))
+})
 
-
-
-main()
+const auth = (req, res, next) => req.session?.address ? next() : res.sendStatus(401)

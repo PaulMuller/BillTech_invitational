@@ -4,8 +4,8 @@
   "description": "test task for BillTech (server side)",
   "main": "index.js",
   "scripts": {
-    "runApiServer": "node ./src/apiServer.js",
-    "runCollector": "node ./src/swapsCollector.js"
+    "apiServer": "node ./src/apiServer.js",
+    "collector": "node ./src/swapsCollector.js"
   },
   "author": "PaulMuller",
   "license": "UNLICENSED",
@@ -13,11 +13,13 @@
     "axios": "^0.21.4",
     "bn.js": "^5.2.0",
     "canoe-solidity": "github:cryptofinlabs/canoe-solidity",
+    "cookie-parser": "^1.4.5",
     "cors": "^2.8.5",
     "dotenv": "^10.0.0",
     "ethereum-input-data-decoder": "^0.3.4",
     "express-session": "^1.17.2",
     "mongoose": "^6.0.5",
+    "mongoose-session": "0.0.4",
     "web3": "^1.5.2"
   }
 }

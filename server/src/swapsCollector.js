@@ -18,7 +18,7 @@ const SWAP_SIGNATURES_LIST = routerAbi
 
 const main = async () => {
     await mongoose.connect(process.env.DB_URL, config.mongoDBConnectionOptions)
-    const swapModel         = mongoose.model(`swaps`, swapSchema)
+    const swapModel = mongoose.model(`swaps`, swapSchema)
 
     while(1){
         const lastStoredBlock   = (await swapModel.findOne().sort({block_number: -1})).block_number
@@ -37,8 +37,6 @@ const main = async () => {
     }
 }
 
-
-
 const getSwapsInBlock = async blockNumber => {
     const block = await web3.eth.getBlock(blockNumber, true)
     const validTransactions = filterSwapTransactions(block.transactions)
@@ -56,7 +54,7 @@ const getSwapsInBlock = async blockNumber => {
             el, 
             web3.utils.isBN(decodedFunctionInput.inputs[i]) ? decodedFunctionInput.inputs[i].toString() : decodedFunctionInput.inputs[i]
         ]))
-
+        
         res.push({
             hash:           tx.hash,
             swapper:        tx.from,
@@ -93,13 +91,12 @@ const filterSwapTransactions = transactions =>
     transactions.filter(tx => tx.to === config.targetExchangeRouterAddress)//only to router
                 .filter(tx => isSwapFunction(tx.input.slice(0,10)))//only swap functions
 
-const filterSwapTransactionReceiptLogs = logs => 
-    logs.filter(log => log.topics[0] === SWAP_EVENT_TOPIC0)//only 'swap' event
-            
 const isSwapFunction = signature => SWAP_SIGNATURES_LIST.indexOf(signature) > 0
 
-const sleep = ms => new Promise(r => setTimeout(r, ms))
+const filterSwapTransactionReceiptLogs = logs => 
+    logs.filter(log => log.topics[0] === SWAP_EVENT_TOPIC0)//only 'swap' event
 
+const sleep = ms => new Promise(r => setTimeout(r, ms))
 
 db.on('error', console.error.bind(console, 'connection error:'))
 db.once('open', () => console.log(`MongoDB now ready to save data`))
